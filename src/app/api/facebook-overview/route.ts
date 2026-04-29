@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
       roas: c.roas,
       spend: c.spend,
       budget: c.budget,
+      platform: 'Facebook Ads'
     }));
 
   // Total ROAS (weighted)

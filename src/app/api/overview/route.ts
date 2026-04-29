@@ -75,11 +75,13 @@ export async function GET(request: NextRequest) {
 
   // Low performers: CTR < 1%
   const lowPerformers = campaignPerf.filter(c => c.ctr < 0.01).map(c => ({
-    campaignId: c.id,
+    id: c.id,
     campaignName: c.name,
+    roas: c.roas,
     ctr: c.ctr,
-    impressions: c.impressions,
-    clicks: c.clicks,
+    spend: c.cost,
+    budget: c.dailyBudget,
+    platform: 'Google Ads'
   }));
 
   // Total ROAS

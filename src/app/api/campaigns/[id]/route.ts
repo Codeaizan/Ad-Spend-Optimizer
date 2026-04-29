@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase';
 import { authenticate, handleCors, successResponse, errorResponse } from '../../_lib/apiUtils';
 
@@ -88,6 +89,9 @@ export async function PATCH(
     if (!data) {
       return errorResponse('Campaign not found', 404);
     }
+
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/campaigns');
 
     return successResponse(mapRow(data));
   } catch (err: any) {
