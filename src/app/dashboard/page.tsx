@@ -1,17 +1,16 @@
-import { getCampaigns, getMetrics, getAdGroups, getKeywords, getAccountOverview } from '@/lib/adsService';
+import { getCampaigns, getMetrics, getAdGroups, getKeywords, getAccountOverview, getFacebookOverview } from '@/lib/adsService';
 import { DashboardClient } from './dashboard-client';
 
 export default async function DashboardPage() {
-  // Fetch overview metrics
-  const overview = await getAccountOverview();
-  
-  // Fetch all campaigns
-  const campaigns = await getCampaigns();
-  
-  // Fetch all metrics
-  const metrics = await getMetrics();
-  
-  // Fetch all keywords to find top keywords
+  // Fetch both platform overviews in parallel
+  const [googleOverview, facebookOverview, campaigns, metrics] = await Promise.all([
+    getAccountOverview(),
+    getFacebookOverview(),
+    getCampaigns(),
+    getMetrics(),
+  ]);
+
+  // Fetch all keywords (Google Ads only — Facebook doesn't have keywords)
   const adGroupsNested = await Promise.all(campaigns.map(c => getAdGroups(c.id)));
   const adGroups = adGroupsNested.flat();
   
@@ -21,7 +20,8 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <DashboardClient 
-        overview={overview}
+        googleOverview={googleOverview}
+        facebookOverview={facebookOverview}
         campaigns={campaigns}
         metrics={metrics}
         keywords={keywords}

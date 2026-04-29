@@ -4,23 +4,28 @@ import { authenticate, handleCors, successResponse } from '../_lib/apiUtils';
 
 /**
  * GET /api/overview
- * Returns account-wide totals and alerts
+ * Returns Google Ads account-wide totals and alerts (Google Ads ONLY)
  */
 export async function GET(request: NextRequest) {
   const authError = authenticate(request);
   if (authError) return authError;
 
-  // Aggregate all metrics
-  const totalImpressions = METRICS_DATA.reduce((sum, m) => sum + m.impressions, 0);
-  const totalClicks = METRICS_DATA.reduce((sum, m) => sum + m.clicks, 0);
-  const totalSpend = METRICS_DATA.reduce((sum, m) => sum + m.cost, 0);
-  const totalConversions = METRICS_DATA.reduce((sum, m) => sum + m.conversions, 0);
+  // Only Google Ads campaigns and their metrics
+  const googleCampaigns = CAMPAIGNS.filter(c => c.platform === 'Google Ads');
+  const googleCampaignIds = new Set(googleCampaigns.map(c => c.id));
+  const googleMetrics = METRICS_DATA.filter(m => googleCampaignIds.has(m.campaignId));
+
+  // Aggregate Google-only metrics
+  const totalImpressions = googleMetrics.reduce((sum, m) => sum + m.impressions, 0);
+  const totalClicks = googleMetrics.reduce((sum, m) => sum + m.clicks, 0);
+  const totalSpend = googleMetrics.reduce((sum, m) => sum + m.cost, 0);
+  const totalConversions = googleMetrics.reduce((sum, m) => sum + m.conversions, 0);
   const avgCTR = totalImpressions > 0 ? totalClicks / totalImpressions : 0;
   const avgCPC = totalClicks > 0 ? totalSpend / totalClicks : 0;
 
   // Per-campaign performance for top/bottom analysis
-  const campaignPerf = CAMPAIGNS.map(c => {
-    const metrics = METRICS_DATA.filter(m => m.campaignId === c.id);
+  const campaignPerf = googleCampaigns.map(c => {
+    const metrics = googleMetrics.filter(m => m.campaignId === c.id);
     const impressions = metrics.reduce((sum, m) => sum + m.impressions, 0);
     const clicks = metrics.reduce((sum, m) => sum + m.clicks, 0);
     const cost = metrics.reduce((sum, m) => sum + m.cost, 0);
@@ -76,6 +81,7 @@ export async function GET(request: NextRequest) {
   const totalROAS = totalSpend > 0 ? Math.round((totalRevenue / totalSpend) * 100) / 100 : 0;
 
   return successResponse({
+    platform: 'Google Ads',
     totalSpend: Math.round(totalSpend * 100) / 100,
     totalImpressions,
     totalClicks,
@@ -83,9 +89,9 @@ export async function GET(request: NextRequest) {
     avgCPC: Math.round(avgCPC * 100) / 100,
     totalConversions,
     totalROAS,
-    campaignCount: CAMPAIGNS.length,
-    enabledCount: CAMPAIGNS.filter(c => c.status === 'ENABLED').length,
-    pausedCount: CAMPAIGNS.filter(c => c.status === 'PAUSED').length,
+    campaignCount: googleCampaigns.length,
+    enabledCount: googleCampaigns.filter(c => c.status === 'ENABLED').length,
+    pausedCount: googleCampaigns.filter(c => c.status === 'PAUSED').length,
     topPerformingCampaign,
     lowestCTRCampaign,
     budgetAlerts,

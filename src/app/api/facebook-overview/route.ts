@@ -4,7 +4,7 @@ import { authenticate, handleCors, successResponse } from '../_lib/apiUtils';
 
 /**
  * GET /api/facebook-overview
- * Returns Facebook Ads account-wide totals, top/bottom performers, and alerts
+ * Returns Facebook Ads account-wide totals, top/bottom performers, and alerts (Facebook Ads ONLY)
  */
 export async function GET(request: NextRequest) {
   const authError = authenticate(request);

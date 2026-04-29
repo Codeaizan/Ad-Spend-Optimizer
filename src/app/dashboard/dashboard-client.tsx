@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AccountOverview, Campaign, Metrics, Keyword, CampaignStatus } from '@/lib/googleAdsData';
+import { FacebookOverview } from '@/lib/adsService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,7 +14,8 @@ import { ArrowUpRight, ArrowDownRight, Activity, TrendingUp, TrendingDown, Arrow
 import { subDays, format, parseISO, isAfter } from 'date-fns';
 
 interface DashboardClientProps {
-  overview: AccountOverview;
+  googleOverview: AccountOverview;
+  facebookOverview: FacebookOverview;
   campaigns: Campaign[];
   metrics: Metrics[];
   keywords: Keyword[];
@@ -21,7 +23,7 @@ interface DashboardClientProps {
 
 type SortField = 'name' | 'status' | 'type' | 'dailyBudget' | 'impressions' | 'clicks' | 'ctr' | 'cost' | 'conversions';
 
-export function DashboardClient({ overview, campaigns, metrics, keywords }: DashboardClientProps) {
+export function DashboardClient({ googleOverview, facebookOverview, campaigns, metrics, keywords }: DashboardClientProps) {
   const router = useRouter();
   const [dateRange, setDateRange] = useState('30');
   const [activeChartMetric, setActiveChartMetric] = useState<'impressions' | 'clicks' | 'cost'>('clicks');
@@ -125,14 +127,47 @@ export function DashboardClient({ overview, campaigns, metrics, keywords }: Dash
     );
   };
 
-  const kpis = [
-    { title: 'Total Spend', value: formatCurrency(overview.totalSpend), trend: '+12.5%', isPositive: false, key: 'cost', color: '#3b82f6' }, // Higher spend is technically "negative" trend visually unless expected
-    { title: 'Impressions', value: formatNumber(overview.totalImpressions), trend: '+5.2%', isPositive: true, key: 'impressions', color: '#10b981' },
-    { title: 'Clicks', value: formatNumber(overview.totalClicks), trend: '-2.1%', isPositive: false, key: 'clicks', color: '#f59e0b' },
-    { title: 'Avg. CTR', value: formatPercent(overview.avgCtr), trend: '+1.2%', isPositive: true, key: 'ctr', color: '#8b5cf6' },
-    { title: 'Avg. CPC', value: formatCurrency(overview.avgCpc), trend: '-0.5%', isPositive: true, key: 'averageCpc', color: '#ec4899' },
-    { title: 'Conversions', value: formatNumber(overview.totalConversions), trend: '+18.4%', isPositive: true, key: 'conversions', color: '#06b6d4' },
+  // ─── KPI definitions per platform ──────────────────────────────────
+
+  const googleKpis = [
+    { title: 'Total Spend', value: formatCurrency(googleOverview.totalSpend), trend: '+12.5%', isPositive: false, key: 'cost', color: '#3b82f6' },
+    { title: 'Impressions', value: formatNumber(googleOverview.totalImpressions), trend: '+5.2%', isPositive: true, key: 'impressions', color: '#10b981' },
+    { title: 'Clicks', value: formatNumber(googleOverview.totalClicks), trend: '-2.1%', isPositive: false, key: 'clicks', color: '#f59e0b' },
+    { title: 'Avg. CTR', value: formatPercent(googleOverview.avgCtr), trend: '+1.2%', isPositive: true, key: 'ctr', color: '#8b5cf6' },
+    { title: 'Avg. CPC', value: formatCurrency(googleOverview.avgCpc), trend: '-0.5%', isPositive: true, key: 'averageCpc', color: '#ec4899' },
+    { title: 'Conversions', value: formatNumber(googleOverview.totalConversions), trend: '+18.4%', isPositive: true, key: 'conversions', color: '#06b6d4' },
   ];
+
+  const facebookKpis = [
+    { title: 'Total Spend', value: formatCurrency(facebookOverview.totalSpend), trend: '+8.3%', isPositive: false, key: '', color: '#3b82f6' },
+    { title: 'Impressions', value: formatNumber(facebookOverview.totalImpressions), trend: '+14.7%', isPositive: true, key: '', color: '#10b981' },
+    { title: 'Clicks', value: formatNumber(facebookOverview.totalClicks), trend: '+3.5%', isPositive: true, key: '', color: '#f59e0b' },
+    { title: 'Avg. CTR', value: formatPercent(facebookOverview.avgCTR), trend: '-0.8%', isPositive: false, key: '', color: '#8b5cf6' },
+    { title: 'Avg. CPC', value: formatCurrency(facebookOverview.avgCPC), trend: '+1.1%', isPositive: false, key: '', color: '#ec4899' },
+    { title: 'Conversions', value: formatNumber(facebookOverview.totalConversions), trend: '+22.1%', isPositive: true, key: '', color: '#06b6d4' },
+  ];
+
+  // ─── KPI Card renderer ─────────────────────────────────────────────
+
+  const KpiCard = ({ kpi, showSparkline = false }: { kpi: typeof googleKpis[0], showSparkline?: boolean }) => (
+    <Card className="border-border/50 bg-card/40 backdrop-blur-md hover:bg-card/60 transition-colors">
+      <CardHeader className="pb-2 pt-4 px-4">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          {kpi.title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-4">
+        <div className="flex items-baseline justify-between">
+          <div className="text-xl font-bold">{kpi.value}</div>
+          <div className={`text-xs flex items-center font-medium ${kpi.isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
+            {kpi.isPositive ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
+            {kpi.trend}
+          </div>
+        </div>
+        {showSparkline && 'key' in kpi && <Sparkline dataKey={(kpi as any).key as any} color={kpi.color} />}
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="space-y-6 pb-12">
@@ -140,7 +175,7 @@ export function DashboardClient({ overview, campaigns, metrics, keywords }: Dash
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
-          <p className="text-muted-foreground text-sm">Monitor your key performance indicators across all campaigns.</p>
+          <p className="text-muted-foreground text-sm">Platform-level performance metrics.</p>
         </div>
         <Select value={dateRange} onValueChange={(val) => setDateRange(val || '30')}>
           <SelectTrigger className="w-[180px] bg-card/50 backdrop-blur-sm border-border/50">
@@ -155,34 +190,41 @@ export function DashboardClient({ overview, campaigns, metrics, keywords }: Dash
         </Select>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-        {kpis.map((kpi, i) => (
-          <Card key={i} className="border-border/50 bg-card/40 backdrop-blur-md hover:bg-card/60 transition-colors">
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                {kpi.title}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="flex items-baseline justify-between">
-                <div className="text-xl font-bold">{kpi.value}</div>
-                <div className={`text-xs flex items-center font-medium ${kpi.isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                  {kpi.isPositive ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
-                  {kpi.trend}
-                </div>
-              </div>
-              <Sparkline dataKey={kpi.key as any} color={kpi.color} />
-            </CardContent>
-          </Card>
-        ))}
+      {/* ─── Google Ads Section ──────────────────────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-sm px-3 py-1">
+            Google Ads
+          </Badge>
+          <span className="text-sm text-muted-foreground">{googleKpis[0].title}: {googleKpis[0].value}</span>
+        </div>
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+          {googleKpis.map((kpi, i) => (
+            <KpiCard key={`google-${i}`} kpi={kpi} showSparkline={true} />
+          ))}
+        </div>
       </div>
 
-      {/* Performance Chart */}
+      {/* ─── Facebook Ads Section ────────────────────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 text-sm px-3 py-1">
+            Facebook Ads
+          </Badge>
+          <span className="text-sm text-muted-foreground">{facebookKpis[0].title}: {facebookKpis[0].value}</span>
+        </div>
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+          {facebookKpis.map((kpi, i) => (
+            <KpiCard key={`facebook-${i}`} kpi={kpi} />
+          ))}
+        </div>
+      </div>
+
+      {/* Performance Chart (Google Ads metrics) */}
       <Card className="border-border/50 bg-card/40 backdrop-blur-md">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <div>
-            <CardTitle>Performance</CardTitle>
+            <CardTitle>Google Ads Performance</CardTitle>
             <CardDescription>Metrics over the selected date range</CardDescription>
           </div>
           <Tabs value={activeChartMetric} onValueChange={(v: any) => setActiveChartMetric(v)} className="w-[300px]">
@@ -234,7 +276,7 @@ export function DashboardClient({ overview, campaigns, metrics, keywords }: Dash
         <div className="lg:col-span-2">
           <Card className="border-border/50 bg-card/40 backdrop-blur-md h-full flex flex-col">
             <CardHeader>
-              <CardTitle>Campaign Performance</CardTitle>
+              <CardTitle>Google Ads Campaign Performance</CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-auto">
               <Table>
