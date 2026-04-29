@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Campaign, Metrics, Keyword, Ad } from '@/lib/mockGoogleAds';
+import { Campaign, Metrics, Keyword, Ad } from '@/lib/googleAdsData';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -80,7 +80,7 @@ export function ReportsClient({ campaigns, metrics, keywords, ads }: ReportsClie
       ...d,
       ctr: d.impressions > 0 ? d.clicks / d.impressions : 0,
       averageCpc: d.clicks > 0 ? d.cost / d.clicks : 0,
-      roas: d.cost > 0 ? (d.conversions * 50) / d.cost : 0 // Mock conversion value of 50
+      roas: d.cost > 0 ? (d.conversions * 50) / d.cost : 0 // Avg conversion value of 50
     })).sort((a, b) => a.date.localeCompare(b.date));
   }, [filteredMetrics]);
 

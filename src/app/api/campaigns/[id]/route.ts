@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { MOCK_CAMPAIGNS, MOCK_METRICS, MOCK_AD_GROUPS, MOCK_KEYWORDS, MOCK_ADS } from '@/lib/mockGoogleAds';
+import { CAMPAIGNS, METRICS_DATA, AD_GROUPS, KEYWORDS, ADS } from '@/lib/googleAdsData';
 import { authenticate, handleCors, successResponse, errorResponse } from '../../_lib/apiUtils';
 
 /**
@@ -13,16 +13,16 @@ export async function GET(
   const authError = authenticate(request);
   if (authError) return authError;
 
-  const campaign = MOCK_CAMPAIGNS.find(c => c.id === params.id);
+  const campaign = CAMPAIGNS.find(c => c.id === params.id);
   if (!campaign) {
     return errorResponse('Campaign not found', 404);
   }
 
-  const metrics = MOCK_METRICS.filter(m => m.campaignId === params.id);
-  const adGroups = MOCK_AD_GROUPS.filter(ag => ag.campaignId === params.id);
+  const metrics = METRICS_DATA.filter(m => m.campaignId === params.id);
+  const adGroups = AD_GROUPS.filter(ag => ag.campaignId === params.id);
   const adGroupIds = adGroups.map(ag => ag.id);
-  const keywords = MOCK_KEYWORDS.filter(kw => adGroupIds.includes(kw.adGroupId));
-  const ads = MOCK_ADS.filter(ad => adGroupIds.includes(ad.adGroupId));
+  const keywords = KEYWORDS.filter(kw => adGroupIds.includes(kw.adGroupId));
+  const ads = ADS.filter(ad => adGroupIds.includes(ad.adGroupId));
 
   // Aggregated stats
   const impressions = metrics.reduce((sum, m) => sum + m.impressions, 0);
@@ -57,7 +57,7 @@ export async function PATCH(
   const authError = authenticate(request);
   if (authError) return authError;
 
-  const idx = MOCK_CAMPAIGNS.findIndex(c => c.id === params.id);
+  const idx = CAMPAIGNS.findIndex(c => c.id === params.id);
   if (idx === -1) {
     return errorResponse('Campaign not found', 404);
   }
@@ -68,11 +68,11 @@ export async function PATCH(
 
     for (const key of Object.keys(body)) {
       if (allowedFields.includes(key)) {
-        (MOCK_CAMPAIGNS[idx] as any)[key] = body[key];
+        (CAMPAIGNS[idx] as any)[key] = body[key];
       }
     }
 
-    return successResponse(MOCK_CAMPAIGNS[idx]);
+    return successResponse(CAMPAIGNS[idx]);
   } catch {
     return errorResponse('Invalid request body');
   }
@@ -88,12 +88,12 @@ export async function DELETE(
   const authError = authenticate(request);
   if (authError) return authError;
 
-  const idx = MOCK_CAMPAIGNS.findIndex(c => c.id === params.id);
+  const idx = CAMPAIGNS.findIndex(c => c.id === params.id);
   if (idx === -1) {
     return errorResponse('Campaign not found', 404);
   }
 
-  MOCK_CAMPAIGNS.splice(idx, 1);
+  CAMPAIGNS.splice(idx, 1);
 
   return successResponse({ deletedId: params.id });
 }

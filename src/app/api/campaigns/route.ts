@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { MOCK_CAMPAIGNS, MOCK_METRICS, MOCK_AD_GROUPS } from '@/lib/mockGoogleAds';
+import { CAMPAIGNS, METRICS_DATA, AD_GROUPS } from '@/lib/googleAdsData';
 import { authenticate, handleCors, successResponse, errorResponse } from '../_lib/apiUtils';
 import { subDays, format } from 'date-fns';
 
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const statusFilter = searchParams.get('status')?.toUpperCase();
 
-  let campaigns = [...MOCK_CAMPAIGNS];
+  let campaigns = [...CAMPAIGNS];
 
   if (statusFilter && ['ENABLED', 'PAUSED', 'REMOVED'].includes(statusFilter)) {
     campaigns = campaigns.filter(c => c.status === statusFilter);
@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
 
   // Enrich with aggregated metrics
   const enriched = campaigns.map(c => {
-    const metrics = MOCK_METRICS.filter(m => m.campaignId === c.id);
-    const adGroups = MOCK_AD_GROUPS.filter(ag => ag.campaignId === c.id);
+    const metrics = METRICS_DATA.filter(m => m.campaignId === c.id);
+    const adGroups = AD_GROUPS.filter(ag => ag.campaignId === c.id);
     const impressions = metrics.reduce((sum, m) => sum + m.impressions, 0);
     const clicks = metrics.reduce((sum, m) => sum + m.clicks, 0);
     const cost = metrics.reduce((sum, m) => sum + m.cost, 0);
@@ -70,8 +70,8 @@ export async function POST(request: NextRequest) {
       endDate: endDate || undefined,
     };
 
-    // @ts-ignore — pushing to mock array for demo
-    MOCK_CAMPAIGNS.push(newCampaign);
+    // @ts-ignore — pushing to in-memory array
+    CAMPAIGNS.push(newCampaign);
 
     return successResponse(newCampaign, 201);
   } catch {

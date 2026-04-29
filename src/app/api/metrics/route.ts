@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { MOCK_METRICS } from '@/lib/mockGoogleAds';
+import { METRICS_DATA } from '@/lib/googleAdsData';
 import { authenticate, handleCors, successResponse } from '../_lib/apiUtils';
 import { subDays, format } from 'date-fns';
 
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   const cutoff = format(subDays(new Date(), dateRange), 'yyyy-MM-dd');
 
-  let metrics = MOCK_METRICS.filter(m => m.date >= cutoff);
+  let metrics = METRICS_DATA.filter(m => m.date >= cutoff);
 
   if (campaignId) {
     metrics = metrics.filter(m => m.campaignId === campaignId);

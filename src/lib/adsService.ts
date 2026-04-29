@@ -1,10 +1,10 @@
 import {
-  MOCK_CAMPAIGNS,
-  MOCK_METRICS,
-  MOCK_AD_GROUPS,
-  MOCK_KEYWORDS,
-  MOCK_ADS,
-  MOCK_KEYWORD_SUGGESTIONS,
+  CAMPAIGNS,
+  METRICS_DATA,
+  AD_GROUPS,
+  KEYWORDS,
+  ADS,
+  KEYWORD_SUGGESTIONS,
   Campaign,
   Metrics,
   AdGroup,
@@ -13,13 +13,13 @@ import {
   KeywordSuggestion,
   AccountOverview,
   CampaignStatus,
-} from './mockGoogleAds';
+} from './googleAdsData';
 
 const DELAY_MS = 500;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-let campaigns = [...MOCK_CAMPAIGNS];
+let campaigns = [...CAMPAIGNS];
 
 export async function getCampaigns(): Promise<Campaign[]> {
   await delay(DELAY_MS);
@@ -33,7 +33,7 @@ export async function getCampaignById(id: string): Promise<Campaign | undefined>
 
 export async function getMetrics(campaignId?: string, dateRange?: { start: string; end: string }): Promise<Metrics[]> {
   await delay(DELAY_MS);
-  let result = [...MOCK_METRICS];
+  let result = [...METRICS_DATA];
   
   if (campaignId) {
     result = result.filter((m) => m.campaignId === campaignId);
@@ -48,22 +48,22 @@ export async function getMetrics(campaignId?: string, dateRange?: { start: strin
 
 export async function getAdGroups(campaignId: string): Promise<AdGroup[]> {
   await delay(DELAY_MS);
-  return MOCK_AD_GROUPS.filter((ag) => ag.campaignId === campaignId);
+  return AD_GROUPS.filter((ag) => ag.campaignId === campaignId);
 }
 
 export async function getKeywords(adGroupId: string): Promise<Keyword[]> {
   await delay(DELAY_MS);
-  return MOCK_KEYWORDS.filter((kw) => kw.adGroupId === adGroupId);
+  return KEYWORDS.filter((kw) => kw.adGroupId === adGroupId);
 }
 
 export async function getAds(adGroupId: string): Promise<Ad[]> {
   await delay(DELAY_MS);
-  return MOCK_ADS.filter((ad) => ad.adGroupId === adGroupId);
+  return ADS.filter((ad) => ad.adGroupId === adGroupId);
 }
 
 export async function getKeywordSuggestions(): Promise<KeywordSuggestion[]> {
   await delay(DELAY_MS);
-  return [...MOCK_KEYWORD_SUGGESTIONS];
+  return [...KEYWORD_SUGGESTIONS];
 }
 
 export async function getAccountOverview(): Promise<AccountOverview> {
@@ -72,7 +72,7 @@ export async function getAccountOverview(): Promise<AccountOverview> {
   const totalSpend = campaigns.reduce((sum, c) => sum + c.totalSpend, 0);
   
   // Aggregate metrics to get clicks, impressions, conversions
-  const allMetrics = MOCK_METRICS.filter(m => campaigns.some(c => c.id === m.campaignId));
+  const allMetrics = METRICS_DATA.filter(m => campaigns.some(c => c.id === m.campaignId));
   
   const totalClicks = allMetrics.reduce((sum, m) => sum + m.clicks, 0);
   const totalImpressions = allMetrics.reduce((sum, m) => sum + m.impressions, 0);
@@ -125,7 +125,7 @@ import {
   FACEBOOK_METRICS,
   FacebookCampaign,
   FacebookMetrics,
-} from './mockFacebookAds';
+} from './facebookAdsData';
 import { subDays, format } from 'date-fns';
 
 export async function getFacebookCampaigns(): Promise<FacebookCampaign[]> {

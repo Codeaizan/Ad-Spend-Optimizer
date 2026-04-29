@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { FACEBOOK_CAMPAIGNS, FACEBOOK_METRICS } from '@/lib/mockFacebookAds';
+import { FACEBOOK_CAMPAIGNS, FACEBOOK_METRICS } from '@/lib/facebookAdsData';
 import { authenticate, handleCors, successResponse } from '../_lib/apiUtils';
 
 /**

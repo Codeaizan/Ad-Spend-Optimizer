@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { AccountOverview, Campaign, Metrics, Keyword, CampaignStatus } from '@/lib/mockGoogleAds';
+import { AccountOverview, Campaign, Metrics, Keyword, CampaignStatus } from '@/lib/googleAdsData';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';

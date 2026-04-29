@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Campaign, CampaignStatus, CampaignType } from '@/lib/mockGoogleAds';
+import { Campaign, CampaignStatus, CampaignType } from '@/lib/googleAdsData';
 import { updateCampaignStatus, deleteCampaign, createCampaign } from '@/lib/adsService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

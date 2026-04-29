@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Campaign, AdGroup, KeywordSuggestion } from '@/lib/mockGoogleAds';
+import { Campaign, AdGroup, KeywordSuggestion } from '@/lib/googleAdsData';
 import { getKeywordSuggestions } from '@/lib/adsService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

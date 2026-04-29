@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Campaign, Metrics, AdGroup, Keyword, Ad } from '@/lib/mockGoogleAds';
+import { Campaign, Metrics, AdGroup, Keyword, Ad } from '@/lib/googleAdsData';
 import { updateCampaignStatus } from '@/lib/adsService'; // Assuming we'd add updateCampaignName in a real app
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';

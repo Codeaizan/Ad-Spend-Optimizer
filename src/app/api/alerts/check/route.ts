@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
-import { MOCK_CAMPAIGNS, MOCK_METRICS } from '@/lib/mockGoogleAds';
-import { FACEBOOK_CAMPAIGNS, FACEBOOK_METRICS } from '@/lib/mockFacebookAds';
+import { CAMPAIGNS, METRICS_DATA } from '@/lib/googleAdsData';
+import { FACEBOOK_CAMPAIGNS, FACEBOOK_METRICS } from '@/lib/facebookAdsData';
 import { authenticate, handleCors, successResponse } from '../../_lib/apiUtils';
 import { subDays, format } from 'date-fns';
 
@@ -28,11 +28,11 @@ export async function POST(request: NextRequest) {
 
   // ─── Google Ads Checks ──────────────────────────────────────────
 
-  for (const campaign of MOCK_CAMPAIGNS) {
+  for (const campaign of CAMPAIGNS) {
     if (campaign.status === 'REMOVED') continue;
 
-    const allMetrics = MOCK_METRICS.filter(m => m.campaignId === campaign.id && m.date >= thirtyDaysAgo);
-    const recentMetrics = MOCK_METRICS.filter(m => m.campaignId === campaign.id && m.date >= sevenDaysAgo);
+    const allMetrics = METRICS_DATA.filter(m => m.campaignId === campaign.id && m.date >= thirtyDaysAgo);
+    const recentMetrics = METRICS_DATA.filter(m => m.campaignId === campaign.id && m.date >= sevenDaysAgo);
 
     const totalCost = allMetrics.reduce((sum, m) => sum + m.cost, 0);
     const totalImpressions = allMetrics.reduce((sum, m) => sum + m.impressions, 0);
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
   const severityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
   alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-  const googleCount = MOCK_CAMPAIGNS.filter(c => c.status !== 'REMOVED').length;
+  const googleCount = CAMPAIGNS.filter(c => c.status !== 'REMOVED').length;
   const fbCount = FACEBOOK_CAMPAIGNS.filter(c => c.status !== 'REMOVED').length;
 
   return successResponse({

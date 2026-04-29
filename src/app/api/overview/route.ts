@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { MOCK_CAMPAIGNS, MOCK_METRICS } from '@/lib/mockGoogleAds';
+import { CAMPAIGNS, METRICS_DATA } from '@/lib/googleAdsData';
 import { authenticate, handleCors, successResponse } from '../_lib/apiUtils';
 
 /**
@@ -11,16 +11,16 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   // Aggregate all metrics
-  const totalImpressions = MOCK_METRICS.reduce((sum, m) => sum + m.impressions, 0);
-  const totalClicks = MOCK_METRICS.reduce((sum, m) => sum + m.clicks, 0);
-  const totalSpend = MOCK_METRICS.reduce((sum, m) => sum + m.cost, 0);
-  const totalConversions = MOCK_METRICS.reduce((sum, m) => sum + m.conversions, 0);
+  const totalImpressions = METRICS_DATA.reduce((sum, m) => sum + m.impressions, 0);
+  const totalClicks = METRICS_DATA.reduce((sum, m) => sum + m.clicks, 0);
+  const totalSpend = METRICS_DATA.reduce((sum, m) => sum + m.cost, 0);
+  const totalConversions = METRICS_DATA.reduce((sum, m) => sum + m.conversions, 0);
   const avgCTR = totalImpressions > 0 ? totalClicks / totalImpressions : 0;
   const avgCPC = totalClicks > 0 ? totalSpend / totalClicks : 0;
 
   // Per-campaign performance for top/bottom analysis
-  const campaignPerf = MOCK_CAMPAIGNS.map(c => {
-    const metrics = MOCK_METRICS.filter(m => m.campaignId === c.id);
+  const campaignPerf = CAMPAIGNS.map(c => {
+    const metrics = METRICS_DATA.filter(m => m.campaignId === c.id);
     const impressions = metrics.reduce((sum, m) => sum + m.impressions, 0);
     const clicks = metrics.reduce((sum, m) => sum + m.clicks, 0);
     const cost = metrics.reduce((sum, m) => sum + m.cost, 0);
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
   }));
 
   // Total ROAS
-  const totalRevenue = totalConversions * 50; // mock avg value
+  const totalRevenue = totalConversions * 50; // avg conversion value
   const totalROAS = totalSpend > 0 ? Math.round((totalRevenue / totalSpend) * 100) / 100 : 0;
 
   return successResponse({
@@ -83,9 +83,9 @@ export async function GET(request: NextRequest) {
     avgCPC: Math.round(avgCPC * 100) / 100,
     totalConversions,
     totalROAS,
-    campaignCount: MOCK_CAMPAIGNS.length,
-    enabledCount: MOCK_CAMPAIGNS.filter(c => c.status === 'ENABLED').length,
-    pausedCount: MOCK_CAMPAIGNS.filter(c => c.status === 'PAUSED').length,
+    campaignCount: CAMPAIGNS.length,
+    enabledCount: CAMPAIGNS.filter(c => c.status === 'ENABLED').length,
+    pausedCount: CAMPAIGNS.filter(c => c.status === 'PAUSED').length,
     topPerformingCampaign,
     lowestCTRCampaign,
     budgetAlerts,

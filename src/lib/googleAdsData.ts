@@ -87,7 +87,7 @@ export interface AccountOverview {
 
 const generateId = (prefix: string) => `${prefix}_${Math.random().toString(36).substring(2, 9)}`;
 
-export const MOCK_CAMPAIGNS: Campaign[] = [
+export const CAMPAIGNS: Campaign[] = [
   { id: 'c_1', name: 'Q3 Summer Sale - Search', status: 'ENABLED', type: 'SEARCH', dailyBudget: 500, totalSpend: 14500, startDate: '2026-07-01' },
   { id: 'c_2', name: 'Retargeting - All Visitors', status: 'ENABLED', type: 'DISPLAY', dailyBudget: 150, totalSpend: 4200, startDate: '2026-01-15' },
   { id: 'c_3', name: 'Smart Shopping - Best Sellers', status: 'ENABLED', type: 'SHOPPING', dailyBudget: 1000, totalSpend: 28000, startDate: '2026-03-10' },
@@ -95,8 +95,8 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
   { id: 'c_5', name: 'PMax - High Margin Products', status: 'ENABLED', type: 'PERFORMANCE_MAX', dailyBudget: 800, totalSpend: 22400, startDate: '2026-06-01' },
 ];
 
-export const MOCK_METRICS: Metrics[] = [];
-MOCK_CAMPAIGNS.forEach((campaign) => {
+export const METRICS_DATA: Metrics[] = [];
+CAMPAIGNS.forEach((campaign) => {
   for (let i = 29; i >= 0; i--) {
     const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
     const impressions = Math.floor(Math.random() * 5000) + 1000;
@@ -109,7 +109,7 @@ MOCK_CAMPAIGNS.forEach((campaign) => {
     const revenue = conversions * (Math.random() * 150 + 50);
     const roas = revenue / cost || 0;
 
-    MOCK_METRICS.push({
+    METRICS_DATA.push({
       date,
       campaignId: campaign.id,
       impressions,
@@ -124,13 +124,13 @@ MOCK_CAMPAIGNS.forEach((campaign) => {
   }
 });
 
-export const MOCK_AD_GROUPS: AdGroup[] = [];
-MOCK_CAMPAIGNS.forEach((campaign) => {
+export const AD_GROUPS: AdGroup[] = [];
+CAMPAIGNS.forEach((campaign) => {
   for (let i = 1; i <= 3; i++) {
     const impressions = Math.floor(Math.random() * 15000) + 5000;
     const clicks = Math.floor(impressions * 0.04);
     const cost = clicks * 1.5;
-    MOCK_AD_GROUPS.push({
+    AD_GROUPS.push({
       id: `ag_${campaign.id}_${i}`,
       campaignId: campaign.id,
       name: `Ad Group ${i} - ${campaign.name}`,
@@ -143,13 +143,13 @@ MOCK_CAMPAIGNS.forEach((campaign) => {
   }
 });
 
-export const MOCK_KEYWORDS: Keyword[] = [];
-MOCK_AD_GROUPS.forEach((ag) => {
+export const KEYWORDS: Keyword[] = [];
+AD_GROUPS.forEach((ag) => {
   const matchTypes: MatchType[] = ['BROAD', 'PHRASE', 'EXACT'];
   for (let i = 1; i <= 5; i++) {
     const impressions = Math.floor(Math.random() * 3000) + 500;
     const clicks = Math.floor(impressions * 0.06);
-    MOCK_KEYWORDS.push({
+    KEYWORDS.push({
       id: `kw_${ag.id}_${i}`,
       adGroupId: ag.id,
       keyword: `ecommerce term ${Math.floor(Math.random() * 1000)}`,
@@ -164,12 +164,12 @@ MOCK_AD_GROUPS.forEach((ag) => {
   }
 });
 
-export const MOCK_ADS: Ad[] = [];
-MOCK_AD_GROUPS.forEach((ag) => {
+export const ADS: Ad[] = [];
+AD_GROUPS.forEach((ag) => {
   for (let i = 1; i <= 2; i++) {
     const impressions = Math.floor(Math.random() * 8000) + 2000;
     const clicks = Math.floor(impressions * 0.05);
-    MOCK_ADS.push({
+    ADS.push({
       id: `ad_${ag.id}_${i}`,
       adGroupId: ag.id,
       headlines: [`Buy Best Products Now`, `Top Rated E-commerce ${i}`, `Save 20% Today`],
@@ -184,7 +184,7 @@ MOCK_AD_GROUPS.forEach((ag) => {
   }
 });
 
-export const MOCK_KEYWORD_SUGGESTIONS: KeywordSuggestion[] = [
+export const KEYWORD_SUGGESTIONS: KeywordSuggestion[] = [
   { keyword: 'buy running shoes online', avgMonthlySearches: 14800, competition: 'HIGH', suggestedBid: 2.45 },
   { keyword: 'affordable wireless earbuds', avgMonthlySearches: 22000, competition: 'HIGH', suggestedBid: 1.80 },
   { keyword: 'best mechanical keyboard 2026', avgMonthlySearches: 8100, competition: 'MEDIUM', suggestedBid: 1.25 },
