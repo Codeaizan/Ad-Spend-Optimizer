@@ -8,11 +8,14 @@ export type AdStatus = 'ENABLED' | 'PAUSED' | 'REMOVED';
 export type AdGroupStatus = 'ENABLED' | 'PAUSED' | 'REMOVED';
 export type KeywordStatus = 'ENABLED' | 'PAUSED' | 'REMOVED';
 
+export type Platform = 'Google Ads' | 'Facebook Ads';
+
 export interface Campaign {
   id: string;
   name: string;
   status: CampaignStatus;
   type: CampaignType;
+  platform: Platform;
   dailyBudget: number;
   totalSpend: number;
   startDate: string;
@@ -88,11 +91,11 @@ export interface AccountOverview {
 const generateId = (prefix: string) => `${prefix}_${Math.random().toString(36).substring(2, 9)}`;
 
 export const CAMPAIGNS: Campaign[] = [
-  { id: 'c_1', name: 'Q3 Summer Sale - Search', status: 'ENABLED', type: 'SEARCH', dailyBudget: 500, totalSpend: 14500, startDate: '2026-07-01' },
-  { id: 'c_2', name: 'Retargeting - All Visitors', status: 'ENABLED', type: 'DISPLAY', dailyBudget: 150, totalSpend: 4200, startDate: '2026-01-15' },
-  { id: 'c_3', name: 'Smart Shopping - Best Sellers', status: 'ENABLED', type: 'SHOPPING', dailyBudget: 1000, totalSpend: 28000, startDate: '2026-03-10' },
-  { id: 'c_4', name: 'Brand Awareness - Video', status: 'PAUSED', type: 'VIDEO', dailyBudget: 200, totalSpend: 1500, startDate: '2026-05-01', endDate: '2026-05-31' },
-  { id: 'c_5', name: 'PMax - High Margin Products', status: 'ENABLED', type: 'PERFORMANCE_MAX', dailyBudget: 800, totalSpend: 22400, startDate: '2026-06-01' },
+  { id: 'c_1', name: 'Q3 Summer Sale - Search', status: 'ENABLED', type: 'SEARCH', platform: 'Google Ads', dailyBudget: 500, totalSpend: 14500, startDate: '2026-07-01' },
+  { id: 'c_2', name: 'Retargeting - All Visitors', status: 'ENABLED', type: 'DISPLAY', platform: 'Google Ads', dailyBudget: 150, totalSpend: 4200, startDate: '2026-01-15' },
+  { id: 'c_3', name: 'Smart Shopping - Best Sellers', status: 'ENABLED', type: 'SHOPPING', platform: 'Google Ads', dailyBudget: 1000, totalSpend: 28000, startDate: '2026-03-10' },
+  { id: 'c_4', name: 'Brand Awareness - Video', status: 'PAUSED', type: 'VIDEO', platform: 'Google Ads', dailyBudget: 200, totalSpend: 1500, startDate: '2026-05-01', endDate: '2026-05-31' },
+  { id: 'c_5', name: 'PMax - High Margin Products', status: 'ENABLED', type: 'PERFORMANCE_MAX', platform: 'Google Ads', dailyBudget: 800, totalSpend: 22400, startDate: '2026-06-01' },
 ];
 
 export const METRICS_DATA: Metrics[] = [];

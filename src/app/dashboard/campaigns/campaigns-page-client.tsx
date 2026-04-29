@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Campaign, CampaignStatus, CampaignType } from '@/lib/googleAdsData';
+import { CampaignStatus, CampaignType, Platform } from '@/lib/googleAdsData';
 import { updateCampaignStatus, deleteCampaign, createCampaign } from '@/lib/adsService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,7 +18,16 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Search, Plus, Pencil, Trash2, ArrowUpDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface CampaignWithMetrics extends Campaign {
+interface CampaignWithMetrics {
+  id: string;
+  name: string;
+  status: CampaignStatus;
+  type: string;
+  platform: Platform;
+  dailyBudget: number;
+  totalSpend: number;
+  startDate: string;
+  endDate?: string;
   impressions: number;
   clicks: number;
   cost: number;
@@ -32,6 +41,7 @@ export function CampaignsPageClient({ initialCampaigns }: { initialCampaigns: Ca
   const [campaigns, setCampaigns] = useState<CampaignWithMetrics[]>(initialCampaigns);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [platformFilter, setPlatformFilter] = useState('ALL');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -46,7 +56,6 @@ export function CampaignsPageClient({ initialCampaigns }: { initialCampaigns: Ca
   const [sortDesc, setSortDesc] = useState(false);
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val);
-  const formatCurrencyInr = (val: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val);
   const formatNumber = (val: number) => new Intl.NumberFormat('en-US').format(val);
   const formatPercent = (val: number) => new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 2 }).format(val);
 
@@ -55,7 +64,8 @@ export function CampaignsPageClient({ initialCampaigns }: { initialCampaigns: Ca
       .filter(c => {
         const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase());
         const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
-        return matchesSearch && matchesStatus;
+        const matchesPlatform = platformFilter === 'ALL' || c.platform === platformFilter;
+        return matchesSearch && matchesStatus && matchesPlatform;
       })
       .sort((a, b) => {
         let valA = a[sortField];
@@ -66,7 +76,7 @@ export function CampaignsPageClient({ initialCampaigns }: { initialCampaigns: Ca
         // @ts-ignore
         return sortDesc ? valB - valA : valA - valB;
       });
-  }, [campaigns, search, statusFilter, sortField, sortDesc]);
+  }, [campaigns, search, statusFilter, platformFilter, sortField, sortDesc]);
 
   const handleSort = (field: keyof CampaignWithMetrics) => {
     if (sortField === field) {
@@ -128,6 +138,7 @@ export function CampaignsPageClient({ initialCampaigns }: { initialCampaigns: Ca
       name: formData.get('name') as string,
       type: formData.get('type') as CampaignType,
       status: formData.get('status') as CampaignStatus,
+      platform: 'Google Ads' as Platform,
       dailyBudget: Number(formData.get('budget')),
       totalSpend: 0,
       startDate: formData.get('startDate') as string,
@@ -160,6 +171,14 @@ export function CampaignsPageClient({ initialCampaigns }: { initialCampaigns: Ca
     }
   };
 
+  const getPlatformBadge = (platform: Platform) => {
+    switch (platform) {
+      case 'Google Ads': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+      case 'Facebook Ads': return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+      default: return 'outline';
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -173,6 +192,16 @@ export function CampaignsPageClient({ initialCampaigns }: { initialCampaigns: Ca
       <Card className="border-border/50 bg-card/40 backdrop-blur-md">
         <div className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-border/50">
           <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Select value={platformFilter} onValueChange={(val) => setPlatformFilter(val || 'ALL')}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Filter Platform" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Platforms</SelectItem>
+                <SelectItem value="Google Ads">Google Ads</SelectItem>
+                <SelectItem value="Facebook Ads">Facebook Ads</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val || 'ALL')}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Filter Status" />
@@ -209,6 +238,9 @@ export function CampaignsPageClient({ initialCampaigns }: { initialCampaigns: Ca
                 <TableHead className="cursor-pointer hover:text-primary transition-colors min-w-[200px]" onClick={() => handleSort('name')}>
                   Campaign Name <ArrowUpDown className="inline h-3 w-3 ml-1" />
                 </TableHead>
+                <TableHead className="cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('platform')}>
+                  Platform <ArrowUpDown className="inline h-3 w-3 ml-1" />
+                </TableHead>
                 <TableHead className="cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('status')}>
                   Status <ArrowUpDown className="inline h-3 w-3 ml-1" />
                 </TableHead>
@@ -240,7 +272,7 @@ export function CampaignsPageClient({ initialCampaigns }: { initialCampaigns: Ca
             <TableBody>
               {filteredAndSortedCampaigns.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                     No campaigns found matching your criteria.
                   </TableCell>
                 </TableRow>
@@ -257,6 +289,11 @@ export function CampaignsPageClient({ initialCampaigns }: { initialCampaigns: Ca
                       >
                         {c.name}
                       </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={getPlatformBadge(c.platform)}>
+                        {c.platform}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
