@@ -1,62 +1,65 @@
 import { NextRequest } from 'next/server';
-import { CAMPAIGNS, METRICS_DATA } from '@/lib/googleAdsData';
-import { authenticate, handleCors, successResponse } from '../_lib/apiUtils';
+import { supabase } from '@/lib/supabase';
+import { authenticate, handleCors, successResponse, errorResponse } from '../_lib/apiUtils';
 
 /**
  * GET /api/overview
- * Returns Google Ads account-wide totals and alerts (Google Ads ONLY)
+ * Returns Google Ads account-wide totals (Google Ads ONLY)
+ * Reads from Supabase campaigns table
  */
 export async function GET(request: NextRequest) {
   const authError = authenticate(request);
   if (authError) return authError;
 
-  // Only Google Ads campaigns and their metrics
-  const googleCampaigns = CAMPAIGNS.filter(c => c.platform === 'Google Ads');
-  const googleCampaignIds = new Set(googleCampaigns.map(c => c.id));
-  const googleMetrics = METRICS_DATA.filter(m => googleCampaignIds.has(m.campaignId));
+  const { data: campaigns, error } = await supabase
+    .from('campaigns')
+    .select('*')
+    .eq('platform', 'Google Ads');
 
-  // Aggregate Google-only metrics
-  const totalImpressions = googleMetrics.reduce((sum, m) => sum + m.impressions, 0);
-  const totalClicks = googleMetrics.reduce((sum, m) => sum + m.clicks, 0);
-  const totalSpend = googleMetrics.reduce((sum, m) => sum + m.cost, 0);
-  const totalConversions = googleMetrics.reduce((sum, m) => sum + m.conversions, 0);
+  if (error) {
+    return errorResponse(`Database error: ${error.message}`, 500);
+  }
+
+  const rows = campaigns || [];
+
+  // Aggregate totals from DB rows
+  const totalSpend = rows.reduce((sum, c) => sum + Number(c.cost), 0);
+  const totalImpressions = rows.reduce((sum, c) => sum + c.impressions, 0);
+  const totalClicks = rows.reduce((sum, c) => sum + c.clicks, 0);
+  const totalConversions = rows.reduce((sum, c) => sum + c.conversions, 0);
   const avgCTR = totalImpressions > 0 ? totalClicks / totalImpressions : 0;
   const avgCPC = totalClicks > 0 ? totalSpend / totalClicks : 0;
 
-  // Per-campaign performance for top/bottom analysis
-  const campaignPerf = googleCampaigns.map(c => {
-    const metrics = googleMetrics.filter(m => m.campaignId === c.id);
-    const impressions = metrics.reduce((sum, m) => sum + m.impressions, 0);
-    const clicks = metrics.reduce((sum, m) => sum + m.clicks, 0);
-    const cost = metrics.reduce((sum, m) => sum + m.cost, 0);
-    const conversions = metrics.reduce((sum, m) => sum + m.conversions, 0);
-    const ctr = impressions > 0 ? clicks / impressions : 0;
-    const roas = cost > 0 ? (conversions * 50) / cost : 0;
-    const dailyCost = cost / 30; // avg daily spend over 30 days
+  // Per-campaign performance
+  const campaignPerf = rows.map(c => {
+    const cost = Number(c.cost);
+    const roas = Number(c.roas);
+    const ctr = Number(c.ctr);
+    const dailyCost = cost / 30;
 
     return {
       id: c.id,
-      name: c.name,
+      name: c.campaign_name,
       status: c.status,
-      dailyBudget: c.dailyBudget,
-      impressions,
-      clicks,
+      dailyBudget: Number(c.daily_budget),
+      impressions: c.impressions,
+      clicks: c.clicks,
       cost: Math.round(cost * 100) / 100,
-      conversions,
+      conversions: c.conversions,
       ctr,
       roas: Math.round(roas * 100) / 100,
       avgDailyCost: Math.round(dailyCost * 100) / 100,
     };
   });
 
-  // Sort to find top and bottom performers
+  // Top and bottom performers
   const sortedByConv = [...campaignPerf].sort((a, b) => b.conversions - a.conversions);
   const sortedByCtr = [...campaignPerf].sort((a, b) => a.ctr - b.ctr);
 
   const topPerformingCampaign = sortedByConv[0] || null;
   const lowestCTRCampaign = sortedByCtr[0] || null;
 
-  // Budget alerts: spend > 80% of daily budget (using avg daily cost)
+  // Budget alerts: spend > 80% of daily budget
   const budgetAlerts = campaignPerf.filter(
     c => c.dailyBudget > 0 && c.avgDailyCost > c.dailyBudget * 0.8
   ).map(c => ({
@@ -77,7 +80,7 @@ export async function GET(request: NextRequest) {
   }));
 
   // Total ROAS
-  const totalRevenue = totalConversions * 50; // avg conversion value
+  const totalRevenue = totalConversions * 50;
   const totalROAS = totalSpend > 0 ? Math.round((totalRevenue / totalSpend) * 100) / 100 : 0;
 
   return successResponse({
@@ -89,9 +92,9 @@ export async function GET(request: NextRequest) {
     avgCPC: Math.round(avgCPC * 100) / 100,
     totalConversions,
     totalROAS,
-    campaignCount: googleCampaigns.length,
-    enabledCount: googleCampaigns.filter(c => c.status === 'ENABLED').length,
-    pausedCount: googleCampaigns.filter(c => c.status === 'PAUSED').length,
+    campaignCount: rows.length,
+    enabledCount: rows.filter(c => c.status === 'ENABLED').length,
+    pausedCount: rows.filter(c => c.status === 'PAUSED').length,
     topPerformingCampaign,
     lowestCTRCampaign,
     budgetAlerts,

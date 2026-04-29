@@ -1,8 +1,6 @@
 import { NextRequest } from 'next/server';
-import { CAMPAIGNS, METRICS_DATA } from '@/lib/googleAdsData';
-import { FACEBOOK_CAMPAIGNS, FACEBOOK_METRICS } from '@/lib/facebookAdsData';
-import { authenticate, handleCors, successResponse } from '../../_lib/apiUtils';
-import { subDays, format } from 'date-fns';
+import { supabase } from '@/lib/supabase';
+import { authenticate, handleCors, successResponse, errorResponse } from '../../_lib/apiUtils';
 
 interface Alert {
   campaignId: string;
@@ -15,150 +13,80 @@ interface Alert {
 
 /**
  * POST /api/alerts/check
- * Checks ALL campaigns (Google + Facebook) for performance issues
+ * Checks ALL campaigns from Supabase for performance issues
  */
 export async function POST(request: NextRequest) {
   const authError = authenticate(request);
   if (authError) return authError;
 
+  const { data: allCampaigns, error } = await supabase
+    .from('campaigns')
+    .select('*')
+    .neq('status', 'REMOVED');
+
+  if (error) {
+    return errorResponse(`Database error: ${error.message}`, 500);
+  }
+
+  const campaigns = allCampaigns || [];
   const alerts: Alert[] = [];
-  const now = new Date();
-  const sevenDaysAgo = format(subDays(now, 7), 'yyyy-MM-dd');
-  const thirtyDaysAgo = format(subDays(now, 30), 'yyyy-MM-dd');
 
-  // ─── Google Ads Checks ──────────────────────────────────────────
+  for (const c of campaigns) {
+    const cost = Number(c.cost);
+    const impressions = c.impressions;
+    const clicks = c.clicks;
+    const conversions = c.conversions;
+    const dailyBudget = Number(c.daily_budget);
+    const ctr = Number(c.ctr);
+    const roas = Number(c.roas);
+    const avgDailyCost = cost / 30;
+    const platform = c.platform as 'Google Ads' | 'Facebook Ads';
 
-  for (const campaign of CAMPAIGNS) {
-    if (campaign.status === 'REMOVED') continue;
-
-    const allMetrics = METRICS_DATA.filter(m => m.campaignId === campaign.id && m.date >= thirtyDaysAgo);
-    const recentMetrics = METRICS_DATA.filter(m => m.campaignId === campaign.id && m.date >= sevenDaysAgo);
-
-    const totalCost = allMetrics.reduce((sum, m) => sum + m.cost, 0);
-    const totalImpressions = allMetrics.reduce((sum, m) => sum + m.impressions, 0);
-    const totalClicks = allMetrics.reduce((sum, m) => sum + m.clicks, 0);
-    const avgDailyCost = allMetrics.length > 0 ? totalCost / 30 : 0;
-    const ctr = totalImpressions > 0 ? totalClicks / totalImpressions : 0;
-    const recentConversions = recentMetrics.reduce((sum, m) => sum + m.conversions, 0);
-
-    // Google: ROAS check
-    const avgRoas = allMetrics.length > 0
-      ? allMetrics.reduce((s, m) => s + m.roas, 0) / allMetrics.length
-      : 0;
-
-    // Budget warning: spend > 80% of daily budget
-    if (campaign.dailyBudget > 0 && avgDailyCost > campaign.dailyBudget * 0.8) {
-      const pct = Math.round((avgDailyCost / campaign.dailyBudget) * 100);
+    // Budget warning: avg daily spend > 80% of daily budget
+    if (dailyBudget > 0 && avgDailyCost > dailyBudget * 0.8) {
+      const pct = Math.round((avgDailyCost / dailyBudget) * 100);
       alerts.push({
-        campaignId: campaign.id,
-        campaignName: campaign.name,
-        platform: 'Google Ads',
+        campaignId: c.id,
+        campaignName: c.campaign_name,
+        platform,
         type: 'BUDGET_WARNING',
-        message: `Average daily spend (₹${avgDailyCost.toFixed(2)}) is ${pct}% of daily budget (₹${campaign.dailyBudget}). Consider increasing the budget.`,
+        message: `Average daily spend (₹${avgDailyCost.toFixed(2)}) is ${pct}% of daily budget (₹${dailyBudget}). Consider increasing the budget.`,
         severity: pct > 95 ? 'HIGH' : 'MEDIUM',
       });
     }
 
     // Low CTR: < 0.5%
-    if (totalImpressions > 100 && ctr < 0.005) {
+    if (impressions > 100 && ctr < 0.005) {
       alerts.push({
-        campaignId: campaign.id,
-        campaignName: campaign.name,
-        platform: 'Google Ads',
+        campaignId: c.id,
+        campaignName: c.campaign_name,
+        platform,
         type: 'LOW_CTR',
-        message: `CTR is ${(ctr * 100).toFixed(2)}%, well below the 0.5% threshold. Review ad copy and targeting.`,
+        message: `CTR is ${(ctr * 100).toFixed(2)}%, below the 0.5% threshold. Review ad copy and targeting.`,
         severity: ctr < 0.002 ? 'HIGH' : 'MEDIUM',
       });
     }
 
     // Low ROAS: < 1.0
-    if (avgRoas < 1.0 && totalCost > 100) {
+    if (roas < 1.0 && cost > 50) {
       alerts.push({
-        campaignId: campaign.id,
-        campaignName: campaign.name,
-        platform: 'Google Ads',
+        campaignId: c.id,
+        campaignName: c.campaign_name,
+        platform,
         type: 'LOW_ROAS',
-        message: `ROAS is ${avgRoas.toFixed(2)}x, below the 1.0x break-even threshold. Campaign is losing money.`,
+        message: `ROAS is ${roas.toFixed(2)}x, below the 1.0x break-even threshold. Campaign is losing money.`,
         severity: 'HIGH',
       });
     }
 
-    // No conversions in last 7 days
-    if (recentConversions === 0 && recentMetrics.length > 0) {
+    // No conversions
+    if (conversions === 0 && cost > 100) {
       alerts.push({
-        campaignId: campaign.id,
-        campaignName: campaign.name,
-        platform: 'Google Ads',
+        campaignId: c.id,
+        campaignName: c.campaign_name,
+        platform,
         type: 'NO_CONVERSIONS',
-        message: `No conversions recorded in the last 7 days. Check landing pages and conversion tracking.`,
-        severity: 'HIGH',
-      });
-    }
-  }
-
-  // ─── Facebook Ads Checks ────────────────────────────────────────
-
-  for (const campaign of FACEBOOK_CAMPAIGNS) {
-    if (campaign.status === 'REMOVED') continue;
-
-    const allMetrics = FACEBOOK_METRICS.filter(m => m.campaignId === campaign.id && m.date >= thirtyDaysAgo);
-    const recentMetrics = FACEBOOK_METRICS.filter(m => m.campaignId === campaign.id && m.date >= sevenDaysAgo);
-
-    const totalCost = allMetrics.reduce((sum, m) => sum + m.cost, 0);
-    const totalImpressions = allMetrics.reduce((sum, m) => sum + m.impressions, 0);
-    const totalClicks = allMetrics.reduce((sum, m) => sum + m.clicks, 0);
-    const avgDailyCost = allMetrics.length > 0 ? totalCost / 30 : 0;
-    const ctr = totalImpressions > 0 ? totalClicks / totalImpressions : 0;
-    const recentConversions = recentMetrics.reduce((sum, m) => sum + m.conversions, 0);
-    const avgRoas = allMetrics.length > 0
-      ? allMetrics.reduce((s, m) => s + m.roas, 0) / allMetrics.length
-      : 0;
-
-    // Facebook: LOW_ROAS < 1.0
-    if (avgRoas < 1.0 && totalCost > 50) {
-      alerts.push({
-        campaignId: campaign.id,
-        campaignName: campaign.name,
-        platform: 'Facebook Ads',
-        type: 'LOW_ROAS',
-        message: `ROAS is ${avgRoas.toFixed(2)}x, below break-even. This Facebook campaign is unprofitable.`,
-        severity: 'HIGH',
-      });
-    }
-
-    // Facebook: LOW_CTR < 0.5%
-    if (totalImpressions > 100 && ctr < 0.005) {
-      alerts.push({
-        campaignId: campaign.id,
-        campaignName: campaign.name,
-        platform: 'Facebook Ads',
-        type: 'LOW_CTR',
-        message: `CTR is ${(ctr * 100).toFixed(2)}%, below the 0.5% threshold. Review creative and audience targeting.`,
-        severity: 'HIGH',
-      });
-    }
-
-    // Facebook: BUDGET_WARNING > 80%
-    if (campaign.dailyBudget > 0 && avgDailyCost > campaign.dailyBudget * 0.8) {
-      const pct = Math.round((avgDailyCost / campaign.dailyBudget) * 100);
-      alerts.push({
-        campaignId: campaign.id,
-        campaignName: campaign.name,
-        platform: 'Facebook Ads',
-        type: 'BUDGET_WARNING',
-        message: `Average daily spend (₹${avgDailyCost.toFixed(2)}) is ${pct}% of daily budget (₹${campaign.dailyBudget}).`,
-        severity: 'MEDIUM',
-      });
-    }
-
-    // Facebook: NO_CONVERSIONS in last 7 days
-    if (recentConversions === 0 && recentMetrics.length > 0) {
-      alerts.push({
-        campaignId: campaign.id,
-        campaignName: campaign.name,
-        platform: 'Facebook Ads',
-        type: 'NO_CONVERSIONS',
-        message: `No conversions recorded in the last 7 days on Facebook. Check pixel and attribution settings.`,
+        message: `No conversions recorded. Check landing pages and conversion tracking.`,
         severity: 'HIGH',
       });
     }
@@ -168,11 +96,11 @@ export async function POST(request: NextRequest) {
   const severityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
   alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-  const googleCount = CAMPAIGNS.filter(c => c.status !== 'REMOVED').length;
-  const fbCount = FACEBOOK_CAMPAIGNS.filter(c => c.status !== 'REMOVED').length;
+  const googleCount = campaigns.filter(c => c.platform === 'Google Ads').length;
+  const fbCount = campaigns.filter(c => c.platform === 'Facebook Ads').length;
 
   return successResponse({
-    checkedAt: now.toISOString(),
+    checkedAt: new Date().toISOString(),
     campaignsChecked: {
       total: googleCount + fbCount,
       googleAds: googleCount,

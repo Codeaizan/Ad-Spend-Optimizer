@@ -1,13 +1,11 @@
 import { NextRequest } from 'next/server';
-import { CAMPAIGNS, METRICS_DATA, AD_GROUPS, Campaign } from '@/lib/googleAdsData';
-import { FACEBOOK_CAMPAIGNS, FACEBOOK_METRICS } from '@/lib/facebookAdsData';
+import { supabase } from '@/lib/supabase';
 import { authenticate, handleCors, successResponse, errorResponse } from '../_lib/apiUtils';
-import { subDays, format } from 'date-fns';
 
 /**
  * GET /api/campaigns
  * Query: ?status=ENABLED|PAUSED|REMOVED&platform=Google Ads|Facebook Ads
- * Returns BOTH Google and Facebook campaigns combined
+ * Returns campaigns from Supabase
  */
 export async function GET(request: NextRequest) {
   const authError = authenticate(request);
@@ -17,65 +15,41 @@ export async function GET(request: NextRequest) {
   const statusFilter = searchParams.get('status')?.toUpperCase();
   const platformFilter = searchParams.get('platform');
 
-  // ─── Google Ads campaigns (enriched with metrics) ───────────────
-  const googleEnriched = CAMPAIGNS.map(c => {
-    const metrics = METRICS_DATA.filter(m => m.campaignId === c.id);
-    const adGroups = AD_GROUPS.filter(ag => ag.campaignId === c.id);
-    const impressions = metrics.reduce((sum, m) => sum + m.impressions, 0);
-    const clicks = metrics.reduce((sum, m) => sum + m.clicks, 0);
-    const cost = metrics.reduce((sum, m) => sum + m.cost, 0);
-    const conversions = metrics.reduce((sum, m) => sum + m.conversions, 0);
-
-    return {
-      ...c,
-      adGroupCount: adGroups.length,
-      impressions,
-      clicks,
-      ctr: impressions > 0 ? clicks / impressions : 0,
-      cost: Math.round(cost * 100) / 100,
-      conversions,
-    };
-  });
-
-  // ─── Facebook Ads campaigns (enriched with metrics) ─────────────
-  const facebookEnriched = FACEBOOK_CAMPAIGNS.map(c => {
-    const metrics = FACEBOOK_METRICS.filter(m => m.campaignId === c.id);
-    const impressions = metrics.reduce((sum, m) => sum + m.impressions, 0);
-    const clicks = metrics.reduce((sum, m) => sum + m.clicks, 0);
-    const cost = metrics.reduce((sum, m) => sum + m.cost, 0);
-    const conversions = metrics.reduce((sum, m) => sum + m.conversions, 0);
-
-    return {
-      id: c.id,
-      name: c.name,
-      status: c.status,
-      type: c.objective,     // Map objective → type for unified shape
-      platform: c.platform,  // 'Facebook Ads'
-      dailyBudget: c.dailyBudget,
-      totalSpend: c.totalSpend,
-      startDate: c.startDate,
-      endDate: c.endDate,
-      adGroupCount: 0,
-      impressions,
-      clicks,
-      ctr: impressions > 0 ? clicks / impressions : 0,
-      cost: Math.round(cost * 100) / 100,
-      conversions,
-    };
-  });
-
-  // ─── Combine, filter, return ────────────────────────────────────
-  let all = [...googleEnriched, ...facebookEnriched];
+  let query = supabase.from('campaigns').select('*');
 
   if (statusFilter && ['ENABLED', 'PAUSED', 'REMOVED'].includes(statusFilter)) {
-    all = all.filter(c => c.status === statusFilter);
+    query = query.eq('status', statusFilter);
   }
 
   if (platformFilter) {
-    all = all.filter(c => c.platform === platformFilter);
+    query = query.eq('platform', platformFilter);
   }
 
-  return successResponse(all);
+  const { data, error } = await query.order('platform').order('campaign_name');
+
+  if (error) {
+    return errorResponse(`Database error: ${error.message}`, 500);
+  }
+
+  // Map DB column names to API response shape
+  const campaigns = (data || []).map(row => ({
+    id: row.id,
+    name: row.campaign_name,
+    status: row.status,
+    type: row.type,
+    platform: row.platform,
+    dailyBudget: Number(row.daily_budget),
+    impressions: row.impressions,
+    clicks: row.clicks,
+    ctr: Number(row.ctr),
+    avgCpc: Number(row.avg_cpc),
+    cost: Number(row.cost),
+    conversions: row.conversions,
+    roas: Number(row.roas),
+    createdAt: row.created_at,
+  }));
+
+  return successResponse(campaigns);
 }
 
 /**
@@ -88,27 +62,54 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, type, goal, dailyBudget, startDate, endDate, status } = body;
+    const { name, type, status, dailyBudget, platform } = body;
 
     if (!name || !type) {
       return errorResponse('Missing required fields: name, type');
     }
 
-    const newCampaign: Campaign = {
-      id: `c_${Date.now()}`,
-      name,
+    const newId = `c_${Date.now()}`;
+    const row = {
+      id: newId,
+      campaign_name: name,
       status: status || 'ENABLED',
       type: type || 'SEARCH',
-      platform: 'Google Ads',
-      dailyBudget: dailyBudget || 100,
-      totalSpend: 0,
-      startDate: startDate || format(new Date(), 'yyyy-MM-dd'),
-      endDate: endDate || undefined,
+      platform: platform || 'Google Ads',
+      daily_budget: dailyBudget || 100,
+      impressions: 0,
+      clicks: 0,
+      ctr: 0,
+      avg_cpc: 0,
+      cost: 0,
+      conversions: 0,
+      roas: 0,
     };
 
-    CAMPAIGNS.push(newCampaign);
+    const { data, error } = await supabase
+      .from('campaigns')
+      .insert(row)
+      .select()
+      .single();
 
-    return successResponse(newCampaign, 201);
+    if (error) {
+      return errorResponse(`Database error: ${error.message}`, 500);
+    }
+
+    return successResponse({
+      id: data.id,
+      name: data.campaign_name,
+      status: data.status,
+      type: data.type,
+      platform: data.platform,
+      dailyBudget: Number(data.daily_budget),
+      impressions: data.impressions,
+      clicks: data.clicks,
+      ctr: Number(data.ctr),
+      avgCpc: Number(data.avg_cpc),
+      cost: Number(data.cost),
+      conversions: data.conversions,
+      roas: Number(data.roas),
+    }, 201);
   } catch {
     return errorResponse('Invalid request body');
   }

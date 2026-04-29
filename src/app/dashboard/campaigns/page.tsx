@@ -1,65 +1,37 @@
-import { getCampaigns, getMetrics, getFacebookCampaigns, getFacebookMetrics } from '@/lib/adsService';
+import { supabase } from '@/lib/supabase';
+import { getMetrics } from '@/lib/adsService';
+import { FACEBOOK_METRICS } from '@/lib/facebookAdsData';
 import { CampaignsPageClient } from './campaigns-page-client';
 
 export default async function CampaignsPage() {
-  const [googleCampaigns, googleMetrics, facebookCampaigns, facebookMetrics] = await Promise.all([
-    getCampaigns(),
-    getMetrics(),
-    getFacebookCampaigns(),
-    getFacebookMetrics(),
-  ]);
+  // Fetch all campaigns from Supabase
+  const { data: dbCampaigns, error } = await supabase
+    .from('campaigns')
+    .select('*')
+    .order('platform')
+    .order('campaign_name');
 
-  // Attach metrics to Google campaigns
-  const googleWithMetrics = googleCampaigns.map(c => {
-    const campMetrics = googleMetrics.filter(m => m.campaignId === c.id);
-    const impressions = campMetrics.reduce((sum, m) => sum + m.impressions, 0);
-    const clicks = campMetrics.reduce((sum, m) => sum + m.clicks, 0);
-    const cost = campMetrics.reduce((sum, m) => sum + m.cost, 0);
-    const conversions = campMetrics.reduce((sum, m) => sum + m.conversions, 0);
-    const ctr = impressions > 0 ? clicks / impressions : 0;
-    const avgCpc = clicks > 0 ? cost / clicks : 0;
+  if (error) {
+    return <div className="p-8 text-red-500">Failed to load campaigns: {error.message}</div>;
+  }
 
-    return {
-      ...c,
-      impressions,
-      clicks,
-      cost,
-      conversions,
-      ctr,
-      avgCpc,
-    };
-  });
-
-  // Attach metrics to Facebook campaigns (normalize to same shape)
-  const facebookWithMetrics = facebookCampaigns.map(c => {
-    const campMetrics = facebookMetrics.filter(m => m.campaignId === c.id);
-    const impressions = campMetrics.reduce((sum, m) => sum + m.impressions, 0);
-    const clicks = campMetrics.reduce((sum, m) => sum + m.clicks, 0);
-    const cost = campMetrics.reduce((sum, m) => sum + m.cost, 0);
-    const conversions = campMetrics.reduce((sum, m) => sum + m.conversions, 0);
-    const ctr = impressions > 0 ? clicks / impressions : 0;
-    const avgCpc = clicks > 0 ? cost / clicks : 0;
-
-    return {
-      id: c.id,
-      name: c.name,
-      status: c.status as 'ENABLED' | 'PAUSED' | 'REMOVED',
-      type: c.objective as string,
-      platform: c.platform as 'Google Ads' | 'Facebook Ads',
-      dailyBudget: c.dailyBudget,
-      totalSpend: c.totalSpend,
-      startDate: c.startDate,
-      endDate: c.endDate,
-      impressions,
-      clicks,
-      cost,
-      conversions,
-      ctr,
-      avgCpc,
-    };
-  });
-
-  const allCampaigns = [...googleWithMetrics, ...facebookWithMetrics];
+  // Map DB rows to the shape expected by the client component
+  const allCampaigns = (dbCampaigns || []).map(row => ({
+    id: row.id,
+    name: row.campaign_name,
+    status: row.status as 'ENABLED' | 'PAUSED' | 'REMOVED',
+    type: row.type,
+    platform: row.platform as 'Google Ads' | 'Facebook Ads',
+    dailyBudget: Number(row.daily_budget),
+    totalSpend: Number(row.cost),
+    startDate: row.created_at,
+    impressions: row.impressions,
+    clicks: row.clicks,
+    cost: Number(row.cost),
+    conversions: row.conversions,
+    ctr: Number(row.ctr),
+    avgCpc: Number(row.avg_cpc),
+  }));
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">

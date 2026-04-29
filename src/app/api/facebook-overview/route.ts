@@ -1,51 +1,56 @@
 import { NextRequest } from 'next/server';
-import { FACEBOOK_CAMPAIGNS, FACEBOOK_METRICS } from '@/lib/facebookAdsData';
-import { authenticate, handleCors, successResponse } from '../_lib/apiUtils';
+import { supabase } from '@/lib/supabase';
+import { authenticate, handleCors, successResponse, errorResponse } from '../_lib/apiUtils';
 
 /**
  * GET /api/facebook-overview
- * Returns Facebook Ads account-wide totals, top/bottom performers, and alerts (Facebook Ads ONLY)
+ * Returns Facebook Ads account-wide totals (Facebook Ads ONLY)
+ * Reads from Supabase campaigns table
  */
 export async function GET(request: NextRequest) {
   const authError = authenticate(request);
   if (authError) return authError;
 
-  const totalImpressions = FACEBOOK_METRICS.reduce((s, m) => s + m.impressions, 0);
-  const totalClicks = FACEBOOK_METRICS.reduce((s, m) => s + m.clicks, 0);
-  const totalSpend = FACEBOOK_METRICS.reduce((s, m) => s + m.cost, 0);
-  const totalConversions = FACEBOOK_METRICS.reduce((s, m) => s + m.conversions, 0);
+  const { data: campaigns, error } = await supabase
+    .from('campaigns')
+    .select('*')
+    .eq('platform', 'Facebook Ads');
 
+  if (error) {
+    return errorResponse(`Database error: ${error.message}`, 500);
+  }
+
+  const rows = campaigns || [];
+
+  // Aggregate totals
+  const totalSpend = rows.reduce((sum, c) => sum + Number(c.cost), 0);
+  const totalImpressions = rows.reduce((sum, c) => sum + c.impressions, 0);
+  const totalClicks = rows.reduce((sum, c) => sum + c.clicks, 0);
+  const totalConversions = rows.reduce((sum, c) => sum + c.conversions, 0);
   const avgCTR = totalImpressions > 0 ? totalClicks / totalImpressions : 0;
   const avgCPC = totalClicks > 0 ? totalSpend / totalClicks : 0;
 
   // Per-campaign performance
-  const campaignPerf = FACEBOOK_CAMPAIGNS.map(c => {
-    const metrics = FACEBOOK_METRICS.filter(m => m.campaignId === c.id);
-    const imp = metrics.reduce((s, m) => s + m.impressions, 0);
-    const clk = metrics.reduce((s, m) => s + m.clicks, 0);
-    const cst = metrics.reduce((s, m) => s + m.cost, 0);
-    const conv = metrics.reduce((s, m) => s + m.conversions, 0);
-    const ctr = imp > 0 ? clk / imp : 0;
-    const avgRoas = metrics.length > 0
-      ? metrics.reduce((s, m) => s + m.roas, 0) / metrics.length
-      : 0;
-    const avgDailyCost = cst / 30;
+  const campaignPerf = rows.map(c => {
+    const cost = Number(c.cost);
+    const roas = Number(c.roas);
+    const ctr = Number(c.ctr);
+    const avgDailyCost = cost / 30;
 
     return {
       id: c.id,
-      campaignName: c.name,
+      campaignName: c.campaign_name,
       status: c.status,
-      objective: c.objective,
-      placement: c.placement,
-      dailyBudget: c.dailyBudget,
-      impressions: imp,
-      clicks: clk,
-      spend: Math.round(cst * 100) / 100,
-      conversions: conv,
+      objective: c.type,
+      dailyBudget: Number(c.daily_budget),
+      impressions: c.impressions,
+      clicks: c.clicks,
+      spend: Math.round(cost * 100) / 100,
+      conversions: c.conversions,
       ctr: Math.round(ctr * 10000) / 10000,
-      roas: Math.round(avgRoas * 100) / 100,
+      roas: Math.round(roas * 100) / 100,
       avgDailyCost: Math.round(avgDailyCost * 100) / 100,
-      budget: c.dailyBudget,
+      budget: Number(c.daily_budget),
     };
   });
 
@@ -55,7 +60,7 @@ export async function GET(request: NextRequest) {
   const topPerformingCampaign = sortedByRoas[0] || null;
   const lowestCTRCampaign = sortedByCtr[0] || null;
 
-  // Budget alerts: avg daily spend > 80% of budget
+  // Budget alerts
   const budgetAlerts = campaignPerf
     .filter(c => c.dailyBudget > 0 && c.avgDailyCost > c.dailyBudget * 0.8)
     .map(c => ({
@@ -66,7 +71,7 @@ export async function GET(request: NextRequest) {
       percentUsed: Math.round((c.avgDailyCost / c.dailyBudget) * 100),
     }));
 
-  // Low performers: CTR < 0.5% or ROAS < 1.0
+  // Low performers
   const lowPerformers = campaignPerf
     .filter(c => c.ctr < 0.005 || c.roas < 1.0)
     .map(c => ({
@@ -79,8 +84,8 @@ export async function GET(request: NextRequest) {
     }));
 
   // Total ROAS (weighted)
-  const totalRevenue = FACEBOOK_METRICS.reduce((s, m) => s + (m.cost * m.roas), 0);
-  const totalROAS = totalSpend > 0 ? Math.round((totalRevenue / totalSpend) * 100) / 100 : 0;
+  const weightedRevenue = rows.reduce((sum, c) => sum + Number(c.cost) * Number(c.roas), 0);
+  const totalROAS = totalSpend > 0 ? Math.round((weightedRevenue / totalSpend) * 100) / 100 : 0;
 
   return successResponse({
     platform: 'Facebook Ads',
@@ -91,9 +96,9 @@ export async function GET(request: NextRequest) {
     avgCPC: Math.round(avgCPC * 100) / 100,
     totalConversions,
     totalROAS,
-    campaignCount: FACEBOOK_CAMPAIGNS.length,
-    enabledCount: FACEBOOK_CAMPAIGNS.filter(c => c.status === 'ENABLED').length,
-    pausedCount: FACEBOOK_CAMPAIGNS.filter(c => c.status === 'PAUSED').length,
+    campaignCount: rows.length,
+    enabledCount: rows.filter(c => c.status === 'ENABLED').length,
+    pausedCount: rows.filter(c => c.status === 'PAUSED').length,
     topPerformingCampaign,
     lowestCTRCampaign,
     budgetAlerts,
