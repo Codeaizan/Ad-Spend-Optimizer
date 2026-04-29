@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { authenticate, handleCors, successResponse, errorResponse } from '../../_lib/apiUtils';
 
 interface Alert {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   const authError = authenticate(request);
   if (authError) return authError;
 
-  const { data: allCampaigns, error } = await supabase
+  const { data: allCampaigns, error } = await supabaseAdmin
     .from('campaigns')
     .select('*')
     .neq('status', 'REMOVED');

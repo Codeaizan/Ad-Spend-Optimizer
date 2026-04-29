@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { authenticate, handleCors, successResponse, errorResponse } from '../_lib/apiUtils';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const statusFilter = searchParams.get('status')?.toUpperCase();
   const platformFilter = searchParams.get('platform');
 
-  let query = supabase.from('campaigns').select('*');
+  let query = supabaseAdmin.from('campaigns').select('*');
 
   if (statusFilter && ['ENABLED', 'PAUSED', 'REMOVED'].includes(statusFilter)) {
     query = query.eq('status', statusFilter);
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       roas: 0,
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('campaigns')
       .insert(row)
       .select()

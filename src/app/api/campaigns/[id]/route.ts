@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { authenticate, handleCors, successResponse, errorResponse } from '../../_lib/apiUtils';
 
 /**
@@ -35,7 +35,7 @@ export async function GET(
   const authError = authenticate(request);
   if (authError) return authError;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('campaigns')
     .select('*')
     .eq('id', params.id)
@@ -74,7 +74,7 @@ export async function PATCH(
       return errorResponse('No valid fields to update');
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('campaigns')
       .update(updateFields)
       .eq('id', params.id)
@@ -90,8 +90,8 @@ export async function PATCH(
     }
 
     return successResponse(mapRow(data));
-  } catch {
-    return errorResponse('Invalid request body');
+  } catch (err: any) {
+    return errorResponse(`Server error: ${err.message || 'Unknown error'}`, 500);
   }
 }
 
@@ -106,7 +106,7 @@ export async function DELETE(
   const authError = authenticate(request);
   if (authError) return authError;
 
-  const { error, count } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('campaigns')
     .delete()
     .eq('id', params.id);

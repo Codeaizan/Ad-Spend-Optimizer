@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { authenticate, handleCors, successResponse, errorResponse } from '../_lib/apiUtils';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   const authError = authenticate(request);
   if (authError) return authError;
 
-  const { data: campaigns, error } = await supabase
+  const { data: campaigns, error } = await supabaseAdmin
     .from('campaigns')
     .select('*')
     .eq('platform', 'Google Ads');
