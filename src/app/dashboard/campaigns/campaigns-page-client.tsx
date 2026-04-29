@@ -2,7 +2,10 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { CampaignStatus, CampaignType, Platform } from '@/lib/googleAdsData';
+
+type CampaignStatus = 'ENABLED' | 'PAUSED' | 'REMOVED';
+type CampaignType = string;
+type Platform = 'Google Ads' | 'Facebook Ads';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';

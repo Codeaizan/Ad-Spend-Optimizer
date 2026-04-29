@@ -1,21 +1,18 @@
 import { supabase } from '@/lib/supabase';
-import { getMetrics } from '@/lib/adsService';
-import { FACEBOOK_METRICS } from '@/lib/facebookAdsData';
 import { CampaignsPageClient } from './campaigns-page-client';
 
 export default async function CampaignsPage() {
-  // Fetch all campaigns from Supabase
+  // Fetch all campaigns from Supabase — single source of truth
   const { data: dbCampaigns, error } = await supabase
     .from('campaigns')
     .select('*')
-    .order('platform')
-    .order('campaign_name');
+    .order('created_at', { ascending: true });
 
   if (error) {
     return <div className="p-8 text-red-500">Failed to load campaigns: {error.message}</div>;
   }
 
-  // Map DB rows to the shape expected by the client component
+  // Map DB snake_case columns → camelCase for the client component
   const allCampaigns = (dbCampaigns || []).map(row => ({
     id: row.id,
     name: row.campaign_name,
