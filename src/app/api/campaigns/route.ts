@@ -1,6 +1,9 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { authenticate, handleCors, successResponse, errorResponse } from '../_lib/apiUtils';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 /**
  * GET /api/campaigns
@@ -49,7 +52,15 @@ export async function GET(request: NextRequest) {
     createdAt: row.created_at,
   }));
 
-  return successResponse(campaigns);
+  return NextResponse.json(
+    { success: true, data: campaigns },
+    { 
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    }
+  );
 }
 
 /**

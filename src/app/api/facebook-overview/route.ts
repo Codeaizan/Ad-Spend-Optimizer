@@ -1,6 +1,9 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { authenticate, handleCors, successResponse, errorResponse } from '../_lib/apiUtils';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 /**
  * GET /api/facebook-overview
@@ -87,23 +90,34 @@ export async function GET(request: NextRequest) {
   const weightedRevenue = rows.reduce((sum, c) => sum + Number(c.cost) * Number(c.roas), 0);
   const totalROAS = totalSpend > 0 ? Math.round((weightedRevenue / totalSpend) * 100) / 100 : 0;
 
-  return successResponse({
-    platform: 'Facebook Ads',
-    totalSpend: Math.round(totalSpend * 100) / 100,
-    totalImpressions,
-    totalClicks,
-    avgCTR: Math.round(avgCTR * 10000) / 10000,
-    avgCPC: Math.round(avgCPC * 100) / 100,
-    totalConversions,
-    totalROAS,
-    campaignCount: rows.length,
-    enabledCount: rows.filter(c => c.status === 'ENABLED').length,
-    pausedCount: rows.filter(c => c.status === 'PAUSED').length,
-    topPerformingCampaign,
-    lowestCTRCampaign,
-    budgetAlerts,
-    lowPerformers,
-  });
+  return NextResponse.json(
+    {
+      success: true,
+      data: {
+        platform: 'Facebook Ads',
+        totalSpend: Math.round(totalSpend * 100) / 100,
+        totalImpressions,
+        totalClicks,
+        avgCTR: Math.round(avgCTR * 10000) / 10000,
+        avgCPC: Math.round(avgCPC * 100) / 100,
+        totalConversions,
+        totalROAS,
+        campaignCount: rows.length,
+        enabledCount: rows.filter(c => c.status === 'ENABLED').length,
+        pausedCount: rows.filter(c => c.status === 'PAUSED').length,
+        topPerformingCampaign,
+        lowestCTRCampaign,
+        budgetAlerts,
+        lowPerformers,
+      }
+    },
+    { 
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    }
+  );
 }
 
 /**
