@@ -19,16 +19,17 @@ const DELAY_MS = 500;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-let campaigns = [...CAMPAIGNS];
+// CAMPAIGNS from googleAdsData is the single source of truth (module-level singleton).
+// All mutations happen on this array directly so API routes and server pages stay in sync.
 
 export async function getCampaigns(): Promise<Campaign[]> {
   await delay(DELAY_MS);
-  return [...campaigns];
+  return [...CAMPAIGNS];
 }
 
 export async function getCampaignById(id: string): Promise<Campaign | undefined> {
   await delay(DELAY_MS);
-  return campaigns.find((c) => c.id === id);
+  return CAMPAIGNS.find((c) => c.id === id);
 }
 
 export async function getMetrics(campaignId?: string, dateRange?: { start: string; end: string }): Promise<Metrics[]> {
@@ -69,10 +70,10 @@ export async function getKeywordSuggestions(): Promise<KeywordSuggestion[]> {
 export async function getAccountOverview(): Promise<AccountOverview> {
   await delay(DELAY_MS);
   
-  const totalSpend = campaigns.reduce((sum, c) => sum + c.totalSpend, 0);
+  const totalSpend = CAMPAIGNS.reduce((sum, c) => sum + c.totalSpend, 0);
   
   // Aggregate metrics to get clicks, impressions, conversions
-  const allMetrics = METRICS_DATA.filter(m => campaigns.some(c => c.id === m.campaignId));
+  const allMetrics = METRICS_DATA.filter(m => CAMPAIGNS.some(c => c.id === m.campaignId));
   
   const totalClicks = allMetrics.reduce((sum, m) => sum + m.clicks, 0);
   const totalImpressions = allMetrics.reduce((sum, m) => sum + m.impressions, 0);
@@ -97,25 +98,28 @@ export async function createCampaign(data: Omit<Campaign, 'id'>): Promise<Campai
     ...data,
     id: `c_${Math.random().toString(36).substr(2, 9)}`,
   };
-  campaigns.push(newCampaign);
+  CAMPAIGNS.push(newCampaign);
   return newCampaign;
 }
 
 export async function updateCampaignStatus(id: string, status: CampaignStatus): Promise<Campaign | null> {
   await delay(DELAY_MS);
-  const index = campaigns.findIndex((c) => c.id === id);
-  if (index !== -1) {
-    campaigns[index] = { ...campaigns[index], status };
-    return campaigns[index];
+  const campaign = CAMPAIGNS.find((c) => c.id === id);
+  if (campaign) {
+    campaign.status = status; // Mutate in place to preserve reference
+    return campaign;
   }
   return null;
 }
 
 export async function deleteCampaign(id: string): Promise<boolean> {
   await delay(DELAY_MS);
-  const initialLength = campaigns.length;
-  campaigns = campaigns.filter((c) => c.id !== id);
-  return campaigns.length < initialLength;
+  const index = CAMPAIGNS.findIndex((c) => c.id === id);
+  if (index !== -1) {
+    CAMPAIGNS.splice(index, 1);
+    return true;
+  }
+  return false;
 }
 
 // ─── Facebook Ads Service Functions ─────────────────────────────────

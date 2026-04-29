@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { CampaignStatus, CampaignType, Platform } from '@/lib/googleAdsData';
-import { updateCampaignStatus, deleteCampaign, createCampaign } from '@/lib/adsService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +16,8 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Search, Plus, Pencil, Trash2, ArrowUpDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+
+const API_KEY = process.env.NEXT_PUBLIC_DASHBOARD_API_KEY || '';
 
 interface CampaignWithMetrics {
   id: string;
@@ -102,13 +103,26 @@ export function CampaignsPageClient({ initialCampaigns }: { initialCampaigns: Ca
     setSelectedIds(newSet);
   };
 
+  // ─── API-backed mutations (server-side persistence) ─────────────
+
   const handleStatusToggle = async (id: string, currentStatus: CampaignStatus) => {
     setIsUpdating(id);
     const newStatus = currentStatus === 'ENABLED' ? 'PAUSED' : 'ENABLED';
-    const updated = await updateCampaignStatus(id, newStatus);
-    if (updated) {
-      setCampaigns(campaigns.map(c => c.id === id ? { ...c, status: newStatus } : c));
-      toast.success(`Campaign ${newStatus.toLowerCase()}`);
+    try {
+      const res = await fetch(`/api/campaigns/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setCampaigns(campaigns.map(c => c.id === id ? { ...c, status: newStatus } : c));
+        toast.success(`Campaign ${newStatus.toLowerCase()}`);
+      } else {
+        toast.error(json.error || 'Failed to update status');
+      }
+    } catch {
+      toast.error('Network error — could not update campaign');
     }
     setIsUpdating(null);
   };
@@ -116,15 +130,25 @@ export function CampaignsPageClient({ initialCampaigns }: { initialCampaigns: Ca
   const handleDelete = async () => {
     if (!deleteId) return;
     setIsDeleting(true);
-    const success = await deleteCampaign(deleteId);
-    if (success) {
-      setCampaigns(campaigns.filter(c => c.id !== deleteId));
-      setSelectedIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(deleteId);
-        return newSet;
+    try {
+      const res = await fetch(`/api/campaigns/${deleteId}`, {
+        method: 'DELETE',
+        headers: { 'x-api-key': API_KEY },
       });
-      toast.success('Campaign deleted');
+      const json = await res.json();
+      if (json.success) {
+        setCampaigns(campaigns.filter(c => c.id !== deleteId));
+        setSelectedIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(deleteId);
+          return newSet;
+        });
+        toast.success('Campaign deleted');
+      } else {
+        toast.error(json.error || 'Failed to delete campaign');
+      }
+    } catch {
+      toast.error('Network error — could not delete campaign');
     }
     setIsDeleting(false);
     setDeleteId(null);
@@ -134,38 +158,51 @@ export function CampaignsPageClient({ initialCampaigns }: { initialCampaigns: Ca
     e.preventDefault();
     setIsCreating(true);
     const formData = new FormData(e.currentTarget);
-    const newCampaignData = {
+    const body = {
       name: formData.get('name') as string,
-      type: formData.get('type') as CampaignType,
-      status: formData.get('status') as CampaignStatus,
-      platform: 'Google Ads' as Platform,
+      type: formData.get('type') as string,
+      goal: formData.get('goal') as string,
+      status: formData.get('status') as string,
       dailyBudget: Number(formData.get('budget')),
-      totalSpend: 0,
       startDate: formData.get('startDate') as string,
       endDate: (formData.get('endDate') as string) || undefined,
     };
 
-    const created = await createCampaign(newCampaignData);
-    const newCampaignWithMetrics: CampaignWithMetrics = {
-      ...created,
-      impressions: 0,
-      clicks: 0,
-      cost: 0,
-      conversions: 0,
-      ctr: 0,
-      avgCpc: 0,
-    };
-
-    setCampaigns([newCampaignWithMetrics, ...campaigns]);
+    try {
+      const res = await fetch('/api/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (json.success) {
+        const created = json.data;
+        const newCampaignWithMetrics: CampaignWithMetrics = {
+          ...created,
+          platform: created.platform || 'Google Ads',
+          impressions: 0,
+          clicks: 0,
+          cost: 0,
+          conversions: 0,
+          ctr: 0,
+          avgCpc: 0,
+        };
+        setCampaigns([newCampaignWithMetrics, ...campaigns]);
+        toast.success('Campaign created successfully');
+      } else {
+        toast.error(json.error || 'Failed to create campaign');
+      }
+    } catch {
+      toast.error('Network error — could not create campaign');
+    }
     setIsCreating(false);
     setIsCreateModalOpen(false);
-    toast.success('Campaign created successfully');
   };
 
   const getStatusBadge = (status: CampaignStatus) => {
     switch (status) {
       case 'ENABLED': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
-      case 'PAUSED': return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+      case 'PAUSED': return 'bg-orange-500/15 text-orange-500 border-orange-500/30 font-semibold';
       case 'REMOVED': return 'bg-rose-500/10 text-rose-500 border-rose-500/20';
       default: return 'outline';
     }
