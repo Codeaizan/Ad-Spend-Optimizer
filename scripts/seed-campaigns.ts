@@ -21,155 +21,116 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // ─── Campaign seed data ──────────────────────────────────────────────
-// Google Ads campaigns with pre-calculated metrics from METRICS_DATA
-const googleCampaigns = [
-  {
-    id: 'c_1',
-    campaign_name: 'Q3 Summer Sale - Search',
-    status: 'ENABLED',
-    platform: 'Google Ads',
-    type: 'SEARCH',
-    daily_budget: 500,
-    impressions: 118796,
-    clicks: 3593,
-    ctr: 0.0302,
-    avg_cpc: 1.41,
-    cost: 5074.64,
-    conversions: 220,
-    roas: 2.17,
-  },
-  {
-    id: 'c_2',
-    campaign_name: 'Retargeting - All Visitors',
-    status: 'ENABLED',
-    platform: 'Google Ads',
-    type: 'DISPLAY',
-    daily_budget: 150,
-    impressions: 106132,
-    clicks: 3288,
-    ctr: 0.031,
-    avg_cpc: 1.38,
-    cost: 4553.11,
-    conversions: 184,
-    roas: 2.02,
-  },
-  {
-    id: 'c_3',
-    campaign_name: 'Smart Shopping - Best Sellers',
-    status: 'ENABLED',
-    platform: 'Google Ads',
-    type: 'SHOPPING',
-    daily_budget: 1000,
-    impressions: 103509,
-    clicks: 3601,
-    ctr: 0.0348,
-    avg_cpc: 1.43,
-    cost: 5157.72,
-    conversions: 227,
-    roas: 2.2,
-  },
-  {
-    id: 'c_4',
-    campaign_name: 'Brand Awareness - Video',
-    status: 'PAUSED',
-    platform: 'Google Ads',
-    type: 'VIDEO',
-    daily_budget: 200,
-    impressions: 99825,
-    clicks: 3834,
-    ctr: 0.0384,
-    avg_cpc: 1.41,
-    cost: 5392.40,
-    conversions: 241,
-    roas: 2.23,
-  },
-  {
-    id: 'c_5',
-    campaign_name: 'PMax - High Margin Products',
-    status: 'ENABLED',
-    platform: 'Google Ads',
-    type: 'PERFORMANCE_MAX',
-    daily_budget: 800,
-    impressions: 108102,
-    clicks: 4113,
-    ctr: 0.038,
-    avg_cpc: 1.53,
-    cost: 6292.89,
-    conversions: 239,
-    roas: 1.9,
-  },
-];
 
-// Facebook Ads campaigns with pre-calculated metrics from FACEBOOK_METRICS
-const facebookCampaigns = [
+const allCampaigns = [
+  {
+    id: 'g_1',
+    campaign_name: 'Google – Summer Sale Search',
+    platform: 'Google Ads',
+    status: 'ENABLED',
+    type: 'SEARCH',
+    daily_budget: 5000,
+    cost: 4800,
+    impressions: 95000,
+    clicks: 4750,
+    conversions: 320,
+    roas: 4.8,
+    avg_cpc: 1.01,
+    ctr: 0.05, // 5.0%
+  },
+  {
+    id: 'g_2',
+    campaign_name: 'Google – Brand Remarketing',
+    platform: 'Google Ads',
+    status: 'ENABLED',
+    type: 'DISPLAY',
+    daily_budget: 3000,
+    cost: 2950,
+    impressions: 60000,
+    clicks: 1200,
+    conversions: 28,
+    roas: 1.4,
+    avg_cpc: 2.46,
+    ctr: 0.02, // 2.0%
+  },
+  {
+    id: 'g_3',
+    campaign_name: 'Google – PMax Broad Reach',
+    platform: 'Google Ads',
+    status: 'ENABLED',
+    type: 'PERFORMANCE_MAX',
+    daily_budget: 4000,
+    cost: 3900,
+    impressions: 80000,
+    clicks: 640,
+    conversions: 4,
+    roas: 0.4,
+    avg_cpc: 6.09,
+    ctr: 0.008, // 0.8%
+  },
   {
     id: 'fb_1',
-    campaign_name: 'Retargeting — Cart Abandoners',
-    status: 'ENABLED',
+    campaign_name: 'Facebook – Lookalike Buyers',
     platform: 'Facebook Ads',
+    status: 'ENABLED',
     type: 'CONVERSIONS',
-    daily_budget: 800,
-    impressions: 234299,
-    clicks: 7529,
-    ctr: 0.0321,
-    avg_cpc: 3.15,
-    cost: 23690.08,
-    conversions: 580,
-    roas: 4.1,
+    daily_budget: 4500,
+    cost: 4300,
+    impressions: 110000,
+    clicks: 5500,
+    conversions: 290,
+    roas: 5.1,
+    avg_cpc: 0.78,
+    ctr: 0.05, // 5.0%
   },
   {
     id: 'fb_2',
-    campaign_name: 'Cold Audience Reach',
-    status: 'ENABLED',
+    campaign_name: 'Facebook – Cold Audience Video',
     platform: 'Facebook Ads',
+    status: 'ENABLED',
     type: 'AWARENESS',
-    daily_budget: 600,
-    impressions: 763036,
-    clicks: 3053,
-    ctr: 0.004,
-    avg_cpc: 0.9,
-    cost: 2762.84,
-    conversions: 0,
-    roas: 0.0,
+    daily_budget: 3500,
+    cost: 3400,
+    impressions: 72000,
+    clicks: 1080,
+    conversions: 21,
+    roas: 1.3,
+    avg_cpc: 3.15,
+    ctr: 0.015, // 1.5%
   },
   {
     id: 'fb_3',
-    campaign_name: 'Lookalike — Past Buyers',
+    campaign_name: 'Facebook – Interest Targeting Test',
+    platform: 'Facebook Ads',
     status: 'ENABLED',
-    platform: 'Facebook Ads',
     type: 'CONVERSIONS',
-    daily_budget: 700,
-    impressions: 182391,
-    clicks: 3935,
-    ctr: 0.0216,
-    avg_cpc: 2.86,
-    cost: 11241.17,
-    conversions: 216,
-    roas: 2.8,
-  },
-  {
-    id: 'fb_4',
-    campaign_name: 'Video Views — Product Demo',
-    status: 'PAUSED',
-    platform: 'Facebook Ads',
-    type: 'ENGAGEMENT',
-    daily_budget: 400,
-    impressions: 368633,
-    clicks: 4037,
-    ctr: 0.011,
-    avg_cpc: 1.46,
-    cost: 5877.72,
-    conversions: 66,
-    roas: 1.4,
-  },
+    daily_budget: 2500,
+    cost: 2450,
+    impressions: 55000,
+    clicks: 330,
+    conversions: 2,
+    roas: 0.3,
+    avg_cpc: 7.42,
+    ctr: 0.006, // 0.6%
+  }
 ];
 
 async function seed() {
   console.log('🚀 Seeding campaigns table...\n');
 
-  const allCampaigns = [...googleCampaigns, ...facebookCampaigns];
+  // Delete all existing campaigns first
+  console.log('🗑️ Deleting all existing campaigns...');
+  const { error: deleteError } = await supabase
+    .from('campaigns')
+    .delete()
+    .neq('id', '0'); // Hack to delete all rows since we must provide a filter
+    
+  if (deleteError) {
+    console.error('❌ Failed to delete existing campaigns:', deleteError.message);
+    process.exit(1);
+  }
 
-  // Upsert all campaigns (insert or update if id already exists)
+  // Upsert all campaigns
   const { data, error } = await supabase
     .from('campaigns')
     .upsert(allCampaigns, { onConflict: 'id' })
